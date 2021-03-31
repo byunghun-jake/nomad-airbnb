@@ -36,9 +36,12 @@ PROJECT_APPS = [
     "reviews",
     "reservations",
     "lists",
+    "core",
 ]
 
-THIRD_PARTY_APPS = []
+THIRD_PARTY_APPS = [
+    "django_countries",
+]
 
 DJANGO_APPS = [
     "django.contrib.admin",

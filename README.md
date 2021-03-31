@@ -10,7 +10,7 @@
 
 #### 진행 상황
 
-- [ ] User App
+- [x] User App
 - [ ] Room App
 - [ ] etc...
 
@@ -644,6 +644,289 @@ admin.site.register(get_user_model(), CustomUserAdmin)
 ```
 
 > 기존에 정의되어 있던 fieldsets를 사용하기 위해, `UserAdmin.fieldsets`를 "+"로 붙여주었다.
+
+
+
+---
+
+
+
+## Room App
+
+
+
+### 앱 세팅
+
+- INSTALLED_APPS에 추가하기
+
+  > 앱을 등록하는 방식도 여러가지가 있었는지 몰랐음
+
+  - Nico's way
+
+    ```python
+    PROJECT_APPS = [
+        "users.apps.UsersConfig",
+        "rooms.apps.RoomsConfig",
+    ]
+    ```
+
+  - My way
+
+    ```python
+    PROJECT_APPS = [
+        "users",
+        "rooms",
+    ]
+    ```
+
+    
+
+### Room Model & Admin
+
+#### Model
+
+- created_at과 updated_at이 사용되는 모델이 다양하기 때문에 **모델 상속**을 공부하는 겸 Timestamp model을 만들어보도록 하자!
+  추가로 **추상 모델**에 대한 공부도 할 수 있다.
+
+  상속을 위한 model은 core라는 별도의 앱에 작성할 예정이므로, 
+
+  1. core app 생성
+
+  2. core app 등록
+
+  3. core/models.py에 TimeStampedModel 정의
+
+     ```python
+     from django.db import models
+     
+     
+     class TimeStampedModel(models.Model):
+     
+         """ Time Stamped Model(created_at & updated_at) """
+     
+         # auto_now_add: 생성 시간을 입력
+         created_at = models.DateTimeField(auto_now_add=True)
+         # auto_now: save 메서드 호출 시 시간을 입력
+         updated_at = models.DateTimeField(auto_now=True)
+     
+         class Meta:
+             abstract = True
+     ```
+
+     - abstract
+
+       If `abstract = True`, this model will be an [abstract base class](https://docs.djangoproject.com/en/3.1/topics/db/models/#abstract-base-classes).
+
+       추상화 모델 클래스는 데이터 베이스에 영향을 주지 않는, 다른 모델 클래스를 위한 클래스입니다.
+
+- 생각해보니 core app에서 작성한 모델을 rooms나 다른 모델에서 사용하려면, INSTALLED_APPS에서의 순서가 꼭 지켜져야 할 것 같다. 아니면, settings.py에 위치에 대한 정보를 문자열로 저장해둠으로써 가능할까?
+
+  > User model을 사용할 때는 문제가 발생했지만, TimeStampedModel은 상속에 대한 내용이라, 문제가 없었나? 싶다.
+
+  ![image-20210331222008822](README.assets/image-20210331222008822.png)
+
+  > 교수님께 질문해야지
+
+  
+
+- Room 모델링
+
+  ```python
+  from django.db import models
+  from django.contrib.auth import get_user_model
+  from django_countries.fields import CountryField
+  from core.models import TimeStampedModel
+  
+  
+  class Room(TimeStampedModel):
+  
+      """ Room Model definition """
+  
+      name = models.CharField(max_length=140)
+      # 1(User):N(Room)
+      host = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
+      description = models.TextField()
+      # 국가 정보를 위해 서드파티 라이브러리 설치
+      country = CountryField()
+      city = models.CharField(max_length=140)
+      price = models.IntegerField()
+      address = models.CharField(max_length=140)
+      max_guests = models.IntegerField()
+      beds = models.IntegerField()
+      bedrooms = models.IntegerField()
+      baths = models.IntegerField()
+      check_in = models.TimeField()
+      check_out = models.TimeField()
+      instant_book = models.BooleanField(default=False)
+  ```
+
+  
+
+  - User는 여러 Room을 생성할 수 있고, Room은 하나의 User를 host로 갖는다.
+    이를 1:N 관계라고 하며, model을 정의할 때 ForeignKey라는 이름의 필드를 사용한다.
+
+    - ForeignKey
+
+      필수 위치 인자(target model)를 받고, 필수 이름 인자(on_delete)를 받는다.
+
+      1:N 관계 중 N에 해당하는 model에 작성한다.
+
+      `on_delete=models.CASCAD`란, 참조하는 target이 삭제되었을 때 target을 참조하고 있던 source가 삭제됨을 의미한다.
+
+      
+
+    
+
+  - 국가 관련 정보를 담기 위해 서드파티 라이브러리를 사용하였다.
+
+    
+
+  - 생성 시간과 수정 시간이 필요하기 때문에 TimeStampedModel을 상속받았다.
+
+
+
+- Room에 사용할 M:N 관계를 위한 모델 생성
+
+  ```python
+  class AbstractItem(TimeStampedModel):
+      """ AbstractItem """
+  
+      name = models.CharField(max_length=80)
+      description = models.TextField(blank=True)
+  
+      class Meta:
+          abstract = True
+  
+      def __str__(self):
+          return self.name
+  
+  
+  class RoomType(AbstractItem):
+  
+      """ RoomType Model Definition """
+  
+      class Meta:
+          verbose_name = "Room Type"
+  
+  
+  class Amenity(AbstractItem):
+  
+      """ Amenity Model Definition """
+  
+      class Meta:
+          verbose_name_plural = "Amenities"
+  
+  
+  class Facility(AbstractItem):
+  
+      """ Facility Model Definition """
+  
+      class Meta:
+          verbose_name_plural = "Facilities"
+  
+  
+  class HouseRule(AbstractItem):
+  
+      """ HouseRule Model Definition """
+  
+      class Meta:
+          verbose_name = "House Rule"
+      
+      
+  class Room(TimeStampedModel):
+      # ...
+      room_type = models.ManyToManyField(RoomType)
+  ```
+
+  
+
+  - RoomType, Amenity 등을 위한 AbstractItem 클래스를 생성
+
+    
+
+  - Room과 RoomType은 1:N 관계
+
+  - Amenity, Facility, House Rule은 Room과 M:N 관계
+
+    M:N 관계를 나타내는 것은 **ManyToManyField**이다.
+
+    - ManyToManyField
+
+      한 개의 필수 위치 인자(target model)를 받는다.
+
+      
+
+  - [get_model](https://docs.djangoproject.com/en/3.1/ref/applications/#django.apps.AppConfig.get_model)
+
+    
+
+  - Photo 모델을 따로 만든 것이 특이하다고 생각 (왜 방과 구별했을까? 구별 해야만 하는 것은 아닌 것 같은데?)
+
+    > 한 방에 여러 사진을 올려야 하니까 따로 모델을 만들어 준 것 같다
+
+    
+
+  - RoomType, Amenity, Facility, HouseRule은 select field로 만들어도 되지만, 별개의 모델로 만들었기 때문에 개발자가 하드 코딩으로 넣는 것이 아닌 외부에서 변경이 가능해진다.
+
+
+
+#### Admin
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
