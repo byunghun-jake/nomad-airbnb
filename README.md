@@ -11,7 +11,8 @@
 #### 진행 상황
 
 - [x] User App
-- [ ] Room App
+- [x] Room App
+- [ ] Review App
 - [ ] etc...
 
 
@@ -872,13 +873,128 @@ admin.site.register(get_user_model(), CustomUserAdmin)
 
 #### Admin
 
+```python
+from django.contrib import admin
+from .models import Room, RoomType, Amenity, Facility, HouseRule, Photo
+
+
+class ItemAdmin(admin.ModelAdmin):
+
+    """ Item Admin Definition """
+
+    pass
+
+
+class RoomAdmin(admin.ModelAdmin):
+
+    """ Item Admin Definition """
+
+    pass
+
+
+class PhotoAdmin(admin.ModelAdmin):
+
+    """ Photo Admin Definition """
+
+    pass
+
+
+admin.site.register(Room, RoomAdmin)
+admin.site.register(RoomType, ItemAdmin)
+admin.site.register(Amenity, ItemAdmin)
+admin.site.register(Facility, ItemAdmin)
+admin.site.register(HouseRule, ItemAdmin)
+admin.site.register(Photo, PhotoAdmin)
+```
+
+
+
+- AbstractItem 클래스를 부모로 갖는 RoomType, Amenity, Facility, HouseRule은 공통 Admin 클래스(`ItemAdmin`)로 등록한다.
+
+
+
+## Review App
+
+- 리뷰에 필요한 항목을 확인해보자
+  1. 작성자
+  2. 숙소
+  3. 내용 (글)
+  4. 시간
+  5. 항목 별 평점
+
+
+
+### Model
+
+
+
+- 다른 모델 클래스를 사용해야 하는 경우에는 쌍따옴표로 감싸 텍스트로 입력해 줄 수도 있다.
+
+  ```python
+  from rooms.model import Room
+  
+  class Review:
+      room = models.ForeignKey(Room, on_delete=models.CASCADE)
+      room = models.ForeignKey("rooms.Room", on_delete=models.CASCADE)
+  ```
+
+  > 두 방식 모두 동일하다.
+  >
+  > 단, import를 이용한 방식은 INSTALLED_APPS의 순서에 영향을 받는다.
+
+
+
+```python
+# reviews/models.py
+
+from django.db import models
+from django.conf import settings
+from core.models import TimeStampedModel
+
+
+class Review(TimeStampedModel):
+
+    """ Review Model Definition """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    room = models.ForeignKey("rooms.Room", on_delete=models.CASCADE)
+    content = models.TextField()
+    # score
+    accuracy = models.IntegerField()
+    communication = models.IntegerField()
+    cleanliness = models.IntegerField()
+    location = models.IntegerField()
+    check_in = models.IntegerField()
+    value = models.IntegerField()
+    
+    def __str__(self):
+        return f"{self.content} - {self.room.name}"
+```
+
+- `__str__` 메서드를 이용하여, 해당 모델의 레코드 기본 출력값을 설정
 
 
 
 
 
+### Admin
+
+```python
+# reviews/admin.py
+
+from django.contrib import admin
+from .models import Review
 
 
+class ReviewAdmin(admin.ModelAdmin):
+
+    """ Review Admin Definition """
+
+    pass
+
+
+admin.site.register(Review, ReviewAdmin)
+```
 
 
 
