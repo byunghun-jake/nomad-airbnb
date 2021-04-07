@@ -998,23 +998,146 @@ admin.site.register(Review, ReviewAdmin)
 
 
 
+## Reservation App
 
 
 
+### Model
+
+#### 예약 과정
+
+> 네이버와 동일하게 구성이 되어있는 듯 하다.
+
+- 네이버는 예약 과정을 어떻게 구분하고 있을까?
+  - 예약 진행 중
+  - 예약 확정
+  - 예약 취소
+
+- 강의에서 예약을 구분하는 방식
+  - pending
+  - confirmed
+  - canceled
 
 
 
+```python
+# reservations/models.py
+
+from django.db import models
+from django.contrib.auth import get_user_model
+from core.models import TimeStampedModel
+
+
+class Reservation(TimeStampedModel):
+
+    """ Reservation Model Definition """
+
+    STATUS_PENDING = "pending"
+    STATUS_CONFIRMED = "confirmed"
+    STATUS_CANCELED = "canceled"
+
+    STATUS_CHOICES = (
+        (STATUS_PENDING, "예약 진행 중"),
+        (STATUS_CONFIRMED, "예약 확정"),
+        (STATUS_CANCELED, "예약 취소"),
+    )
+
+    # 사람은 여러 예약을 만들 수 있지
+    guest = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
+    # 한 방을 기준으로 여러 예약이 생성될 수 있어
+    room = models.ForeignKey("rooms.Room", on_delete=models.CASCADE)
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING
+    )
+    # 예약 날짜
+    check_in = models.DateField()
+    check_out = models.DateField()
+
+    def __str__(self):
+        return f"{self.room} - {self.check_in} ~ {self.check_out}"
+```
 
 
 
+- guest가 reservation과 1:1 관계가 아닌가 헷갈렸었다.
+
+  하나의 예약 레코드를 기준으로 보면 guest와 reservation 간의 관계는 1:1이 되지만, 여기서 작성하는 모델은 레코드를 만드는 설계도에 대한 내용임을 잊지 말아야겠다.
+
+  Reservation 이라는 예약 레코드들의 모음에서 바라보면, 한 user(guest)는 여러 예약 record를 생성할 수 있다. 하지만, 한 reservation은 여러 guest를 담는 것이 아니다.
+
+  따라서, guest와 reservation 간의 관계는 1:N이 되는 것
 
 
 
+### Admin
+
+```python
+# reservations/admin.py
+
+from django.contrib import admin
+from .models import Reservation
+
+
+class ReservationAdmin(admin.ModelAdmin):
+
+    """ Reservation Admin Definition """
+
+    pass
+
+
+admin.site.register(Reservation, ReservationAdmin)
+```
 
 
 
+## List App
+
+> 숙소 스크랩 기능을 관리하는 앱
 
 
+
+### Model
+
+```python
+# lists/models.py
+
+from django.db import models
+from django.contrib.auth import get_user_model
+from core.models import TimeStampedModel
+
+
+class List(TimeStampedModel):
+
+    """ List Model Definition """
+
+    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
+    rooms = models.ManyToManyField("rooms.Room", blank=True)
+    name = models.CharField(max_length=80)
+
+    def __str__(self):
+        return f"{self.name} by. {self.user.username}"
+```
+
+
+
+###  Admin
+
+```python
+# lists/admin.py
+
+from django.contrib import admin
+from .models import List
+
+
+class ListAdmin(admin.ModelAdmin):
+
+    """ List Admin Definition """
+
+    pass
+
+
+admin.site.register(List, ListAdmin)
+```
 
 
 
