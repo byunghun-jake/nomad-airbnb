@@ -31,12 +31,13 @@ ALLOWED_HOSTS = []
 # Application definition
 
 PROJECT_APPS = [
+    "core",
     "users",
     "rooms",
     "reviews",
     "reservations",
     "lists",
-    "core",
+    "conversations",
 ]
 
 THIRD_PARTY_APPS = [

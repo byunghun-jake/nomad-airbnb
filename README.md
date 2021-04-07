@@ -1141,17 +1141,84 @@ admin.site.register(List, ListAdmin)
 
 
 
+## Conversation App
 
 
 
+### Model
 
 
 
+```python
+# conversations/models.py
+
+from django.db import models
+from django.contrib.auth import get_user_model
+from core.models import TimeStampedModel
+
+
+class Conversation(TimeStampedModel):
+
+    """ Conversation Model Definition """
+
+    # 대화에 참여하는 사람은 여러명(3명 이상)이 될 수 있다.
+    participants = models.ManyToManyField(get_user_model(), blank=True)
+
+    def __str__(self):
+        return self.created_at
+
+
+# 대화에서 사용되는 메세지를 만드는 클래스
+class Message(TimeStampedModel):
+
+    """ Message Model Definition """
+
+    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
+    content = models.CharField(max_length=100)
+    conversation = models.ForeignKey("Conversation", on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.user}: {self.content}"
+```
 
 
 
+- 대화 클래스와 메세지 클래스를 따로 만드는 것이 신기하다.
+
+  꼼꼼히 생각해보지 않았다면, 대화 클래스에 메세지를 함께 넣어버리는 상황이 될 수 있겠어요.
+
+  
+
+- Conversation = 대화방 / Message = 메세지
 
 
+
+### Admin
+
+```python
+# conversations/admin.py
+
+from django.contrib import admin
+from .models import Conversation, Message
+
+
+class ConversationAdmin(admin.ModelAdmin):
+
+    """ Conversation Admin Definition """
+
+    pass
+
+
+class MessageAdmin(admin.ModelAdmin):
+
+    """ Message Admin Definition """
+
+    pass
+
+
+admin.site.register(Conversation, ConversationAdmin)
+admin.site.register(Message, MessageAdmin)
+```
 
 
 
