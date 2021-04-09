@@ -10,9 +10,16 @@
 
 #### 진행 상황
 
-- [x] User App
-- [x] Room App
-- [ ] Review App
+- [x] Modeling
+  - [x] User App
+  - [x] Room App
+  - [x] Review App
+  - [x] Conversation App
+  - [x] Reservation App
+  - [x] List App
+- [ ] Admin
+  - [ ] Customize admin page
+
 - [ ] etc...
 
 
@@ -652,7 +659,7 @@ admin.site.register(get_user_model(), CustomUserAdmin)
 
 
 
-## Room App
+## 모델링
 
 
 
@@ -680,9 +687,9 @@ admin.site.register(get_user_model(), CustomUserAdmin)
     ]
     ```
 
-    
+---
 
-### Room Model & Admin
+### Room App
 
 #### Model
 
@@ -913,7 +920,9 @@ admin.site.register(Photo, PhotoAdmin)
 
 
 
-## Review App
+---
+
+### Review App
 
 - 리뷰에 필요한 항목을 확인해보자
   1. 작성자
@@ -924,7 +933,7 @@ admin.site.register(Photo, PhotoAdmin)
 
 
 
-### Model
+#### Model
 
 
 
@@ -977,7 +986,7 @@ class Review(TimeStampedModel):
 
 
 
-### Admin
+#### Admin
 
 ```python
 # reviews/admin.py
@@ -998,13 +1007,13 @@ admin.site.register(Review, ReviewAdmin)
 
 
 
-## Reservation App
+---
 
+### Reservation App
 
+#### Model
 
-### Model
-
-#### 예약 과정
+**예약과정**
 
 > 네이버와 동일하게 구성이 되어있는 듯 하다.
 
@@ -1069,7 +1078,7 @@ class Reservation(TimeStampedModel):
 
 
 
-### Admin
+#### Admin
 
 ```python
 # reservations/admin.py
@@ -1090,13 +1099,13 @@ admin.site.register(Reservation, ReservationAdmin)
 
 
 
-## List App
+---
+
+### List App
 
 > 숙소 스크랩 기능을 관리하는 앱
 
-
-
-### Model
+#### Model
 
 ```python
 # lists/models.py
@@ -1120,7 +1129,7 @@ class List(TimeStampedModel):
 
 
 
-###  Admin
+#### Admin
 
 ```python
 # lists/admin.py
@@ -1141,13 +1150,11 @@ admin.site.register(List, ListAdmin)
 
 
 
-## Conversation App
+---
 
+### Conversation App
 
-
-### Model
-
-
+#### Model
 
 ```python
 # conversations/models.py
@@ -1183,7 +1190,7 @@ class Message(TimeStampedModel):
 
 
 
-- 대화 클래스와 메세지 클래스를 따로 만드는 것이 신기하다.
+- **대화 클래스와 메세지 클래스를 따로 만드는 것이 신기하다.**
 
   꼼꼼히 생각해보지 않았다면, 대화 클래스에 메세지를 함께 넣어버리는 상황이 될 수 있겠어요.
 
@@ -1191,9 +1198,13 @@ class Message(TimeStampedModel):
 
 - Conversation = 대화방 / Message = 메세지
 
+  
+
+- 대화방에 참여하는 사람이 3명 이상이 될 수 있기 때문에, ManyToManyField를 사용
 
 
-### Admin
+
+#### Admin
 
 ```python
 # conversations/admin.py
@@ -1219,6 +1230,137 @@ class MessageAdmin(admin.ModelAdmin):
 admin.site.register(Conversation, ConversationAdmin)
 admin.site.register(Message, MessageAdmin)
 ```
+
+
+
+## # 6 ROOM ADMIN
+
+
+
+```python
+class RoomAdmin(admin.ModelAdmin):
+
+    """ Item Admin Definition """
+
+    list_display = (
+        "name",
+        "country",
+        "city",
+        "price",
+        "max_guests",
+        "beds",
+        "bedrooms",
+        "baths",
+        "check_in",
+        "check_out",
+        "instant_book",
+    )
+
+    list_filter = (
+        "instant_book",
+        "city",
+        "country",
+    )
+
+    search_fields = [
+        "city",
+        "name",
+        "host__username",
+    ]
+```
+
+- vs code 단축키
+
+  - 블록 지정한 것들을 줄 단위로 쪼개는 단축키
+
+    `alt + shift + i`
+
+
+
+- `list_display` [공식문서](https://docs.djangoproject.com/en/3.1/ref/contrib/admin/#django.contrib.admin.ModelAdmin.list_display)
+
+  목록에서 어떤 필드를 보여줄 것인지 (어떤 column을 추가할 것인지)
+
+  `ManyToManyField`로 정의된 필드를 추가하기 위해서는 추가 작업이 필요하다.
+
+  ```python
+  # amenities 필드에서 선택된 개수를 보여주고 싶다면?
+  
+  class RoomAdmin(admin.modelAdmin):
+      
+      list_display = (
+      	# ...
+          count_amenities,
+      )
+      
+      # ...
+  
+      def count_amenities(self, obj):
+          return obj.amenities.count()
+  ```
+
+  
+
+- `list_filter` [공식문서](https://docs.djangoproject.com/en/3.1/ref/contrib/admin/#django.contrib.admin.ModelAdmin.list_filter)
+
+  어떤 필드를 기준으로 필터링을 할 것인지
+
+  
+
+- `search_fields` [공식문서](https://docs.djangoproject.com/en/3.1/ref/contrib/admin/#django.contrib.admin.ModelAdmin.search_fields)
+
+  > Set `search_fields` to enable a search box on the admin change list page. This should be set to a list of field names that will be searched whenever somebody submits a search query in that text box.
+
+  **검색 방식**
+
+  - `^`: startswith
+  - `=`: iexact
+  - `@`: search
+  - `Deafult`: icontains
+
+  
+
+  **외래키 검색도 가능**
+
+  
+
+- `filter_horizontal`
+
+  > By default, a [`ManyToManyField`](https://docs.djangoproject.com/en/3.1/ref/models/fields/#django.db.models.ManyToManyField) is displayed in the admin site with a `<select multiple>`. However, multiple-select boxes can be difficult to use when selecting many items. Adding a [`ManyToManyField`](https://docs.djangoproject.com/en/3.1/ref/models/fields/#django.db.models.ManyToManyField) to this list will instead use a nifty unobtrusive JavaScript “filter” interface that allows searching within the options. The unselected and selected options appear in two boxes side by side. See [`filter_vertical`](https://docs.djangoproject.com/en/3.1/ref/contrib/admin/#django.contrib.admin.ModelAdmin.filter_vertical) to use a vertical interface.
+  
+  
+  
+- Ordering
+
+  > Set `ordering` to specify how lists of objects should be ordered in the Django admin views. This should be a list or tuple in the same format as a model’s [`ordering`](https://docs.djangoproject.com/en/3.1/ref/models/options/#django.db.models.Options.ordering) parameter.
+  >
+  > If this isn’t provided, the Django admin will use the model’s default ordering.
+  >
+  > If you need to specify a dynamic order (for example depending on user or language) you can implement a [`get_ordering()`](https://docs.djangoproject.com/en/3.1/ref/contrib/admin/#django.contrib.admin.ModelAdmin.get_ordering) method.
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

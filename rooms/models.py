@@ -53,9 +53,15 @@ class Room(TimeStampedModel):
 
     """ Room Model definition """
 
-    name = models.CharField(max_length=140)
     # 1(User):N(Room)
     host = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
+    # items
+    room_type = models.ForeignKey(RoomType, on_delete=models.SET_NULL, null=True)
+    amenities = models.ManyToManyField(Amenity)
+    facilities = models.ManyToManyField(Facility)
+    house_rules = models.ManyToManyField(HouseRule)
+
+    name = models.CharField(max_length=140)
     description = models.TextField()
     # 국가 정보를 위해 서드파티 라이브러리 설치
     country = CountryField()
@@ -69,11 +75,6 @@ class Room(TimeStampedModel):
     check_in = models.TimeField()
     check_out = models.TimeField()
     instant_book = models.BooleanField(default=False)
-    # items
-    room_type = models.ForeignKey(RoomType, on_delete=models.SET_NULL, null=True)
-    amenities = models.ManyToManyField(Amenity)
-    facilities = models.ManyToManyField(Facility)
-    house_rules = models.ManyToManyField(HouseRule)
 
     def __str__(self):
         return self.name
