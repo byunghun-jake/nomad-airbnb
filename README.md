@@ -17,10 +17,15 @@
   - [x] Conversation App
   - [x] Reservation App
   - [x] List App
-- [ ] Admin
-  - [ ] Customize admin page
-
-- [ ] etc...
+- [x] Admin
+  - [x] Customize admin page
+- [x] Models & Queryset
+  - [x] Queryset
+  - [x] Django ORM
+  - [x] Room / Item Admin (역참조)
+- [ ] More Admin
+  - [ ] Review Admin and Room Average
+  - [ ] 
 
 
 
@@ -1233,7 +1238,7 @@ admin.site.register(Message, MessageAdmin)
 
 
 
-## # 6 ROOM ADMIN
+## #6 ROOM ADMIN
 
 
 
@@ -1338,23 +1343,159 @@ class RoomAdmin(admin.ModelAdmin):
   >
   > If you need to specify a dynamic order (for example depending on user or language) you can implement a [`get_ordering()`](https://docs.djangoproject.com/en/3.1/ref/contrib/admin/#django.contrib.admin.ModelAdmin.get_ordering) method.
 
+
+
+
+
+## #7 Model And Querysets, Django ORM
+
+
+
+#### dir & vars
+
+- vars
+
+  > Return the `__dict__` attribute for a module, class, instance, or any other object with a `__dict__` attribute.
+
+  ```python
+  vars([object])
+  ```
+
+- dir
+
+  > Without arguments, return the list of names in the current local scope.
+  >
+  > With an argument, attempt to return a list of valid attributes for that object.
+
+  ```python
+  dir([object])
+  ```
+
   
 
+```python
+# int를 출력해보자
+
+>>> dir(int)
+['__abs__', '__add__', '__and__', '__bool__', '__ceil__', '__class__', '__delattr__', '__dir__', '__divmod__', '__doc__', '__eq__', '__float__', '__floor__', '__floordiv__', '__format__', '__ge__', '__getattribute__', '__getnewargs__', '__gt__', '__hash__', '__index__', '__init__', '__init_subclass__', '__int__', '__invert__', '__le__', '__lshift__', '__lt__', '__mod__', '__mul__', '__ne__', '__neg__', '__new__', '__or__', '__pos__', '__pow__', '__radd__', '__rand__', '__rdivmod__', '__reduce__', '__reduce_ex__', '__repr__', '__rfloordiv__', '__rlshift__', '__rmod__', '__rmul__', '__ror__', '__round__', '__rpow__', '__rrshift__', '__rshift__', '__rsub__', '__rtruediv__', '__rxor__', '__setattr__', '__sizeof__', '__str__', '__sub__', '__subclasshook__', '__truediv__', '__trunc__', '__xor__', 'as_integer_ratio', 'bit_length', 'conjugate', 'denominator', 'from_bytes', 'imag', 'numerator', 'real', 'to_bytes']
+>>> vars(int)
+mappingproxy({'__repr__': <slot wrapper '__repr__' of 'int' objects>, '__hash__': <slot wrapper '__hash__' of 'int' objects>, '__getattribute__': <slot wrapper '__getattribute__' of 'int' objects>, '__lt__': <slot wrapper '__lt__' of 'int' objects>, '__le__': <slot wrapper '__le__' of 'int' objects>, '__eq__': <slot wrapper '__eq__' of 'int' objects>, '__ne__': <slot wrapper '__ne__' of 'int' objects>, '__gt__': <slot wrapper '__gt__' of 'int' objects>, '__ge__': <slot wrapper '__ge__' of 'int' objects>, '__add__': <slot wrapper '__add__' of 'int' objects>, '__radd__': <slot wrapper '__radd__' of 'int' objects>, '__sub__': <slot wrapper '__sub__' of 'int' objects>, '__rsub__': <slot wrapper '__rsub__' of 'int' objects>, ...
+```
 
 
 
+### QuerySets
+
+> https://docs.djangoproject.com/en/3.1/ref/models/querysets/
 
 
 
+```python
+>>> users = get_user_model()
+
+# 1. 모든 유저 정보를 찾고 싶을 때,
+>>> users.objects.all()
+
+# 2. 특정한 조건을 만족하는 유저 정보를 찾고 싶을 때,
+>>> users.objects.filter(username="admin")
+>>> users.objects.filter(superhost=True)
+# field lookups
+>>> users.objects.filter(birthdate__gte="2021-04-01")
+```
 
 
 
+- 모델간 연결되었을 때, 매니저 호출명
+
+  `[모델명_set]`
+
+```python
+>>> user = get_user_model().objects.get(username="admin")
+
+# 1. 내가 생성한 방 목록을 찾고 싶을 때,
+>>> user.room_set.all()
+
+# 2. 내가 작성한 리뷰를 찾고 싶을 때,
+>>> user.review_set.all()
+
+# 3. 내가 생성한 리스트를 찾고 싶을 때,
+>>> user.list_set.all()
+```
+
+> 관계 필드에 의해 모델 간의 관계가 연결되었다면, 해당하는 매니저를 통해 접근이 가능합니다.
 
 
 
+#### 다른 모델 객체를 참조하는 매니저의 호출명을 변경하려면?
+
+> 필드 생성 시 인자로 전달하는 옵션 중 하나인 `related_name`을 사용한다.
+
+```python
+class Room(models.Model):
+    host = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="myrooms", on_delete="models.CASCADE")
+    # ...
+```
+
+```python
+>>> user = get_user_model().objects.get(pk=1)
+>>> room = Room.objects.get(pk=1)
+>>> amenity = Amenity.objects.get(pk=1)
+
+# 1. 내가 생성한 방 목록을 찾고 싶을 때,
+>>> user.room_set.all()			# Error
+
+>>> user.myrooms.all()			# Correct
+
+# 2. 이 방을 생성한 사람의 이름을 알고 싶을 때,
+>>> room.host.username			# 필드로 선언하였으니, _set과 같은 매니저를 통해 접근하는 것이 아니다.
+
+# 3. amenity가 있는 모든 방 목록을 찾고 싶을 때, (Room - Amenity는 ManyToMany 관계이다)
+>>> amenity.room_set.all()		# ManyToMany도 ForeignKey와 동일하다
+```
 
 
 
+### 역참조를 이용해 Admin 페이지 수정
+
+#### Room Admin
+
+> 업로드 한 사진의 개수를 보여주기
+
+```python
+# rooms/admin.py
+
+class RoomAdmin(admin.ModelAdmin):
+    # ...
+    list_display = (
+    	# ...
+        "count_photos",
+    )
+    
+    # Photo(N) : Room(1)
+    # 역참조
+    def count_photos(self, obj):
+        return obj.photo_set.count()
+```
+
+
+
+#### Item Admin
+
+> Amenity, Facility 등과 같은 Item들이 사용된 방의 개수를 보여주기
+
+```python
+# rooms/admin.py
+
+class ItemAdmin(admin.ModelAdmin):
+    list_display = (
+    	"name",
+        "used_by",
+    )
+    
+    # Item(N) : Room(1)
+    def used_by(self, obj):
+        return obj.room_set.count()
+```
 
 
 
