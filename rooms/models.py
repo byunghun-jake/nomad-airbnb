@@ -79,12 +79,27 @@ class Room(TimeStampedModel):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        self.city = self.city.title()
+        super().save(*args, **kwargs)
+
+    def total_rating(self):
+        reviews = self.review_set.all()
+        if reviews:
+            total_score = 0
+            review_count = len(reviews)
+            for review in reviews:
+                total_score += review.average_score()
+            return round(total_score / review_count, 2)
+        else:
+            return 0
+
 
 class Photo(TimeStampedModel):
     """ Photo Model Definition """
 
     caption = models.CharField(max_length=80)
-    file = models.ImageField()
+    file = models.ImageField(upload_to="room_photos")
     # 밑에 정의되어 있어, String으로 입력
     room = models.ForeignKey(Room, on_delete=models.CASCADE)
 

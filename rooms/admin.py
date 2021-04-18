@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils.safestring import mark_safe
 from .models import Room, RoomType, Amenity, Facility, HouseRule, Photo
 
 
@@ -13,6 +14,13 @@ class ItemAdmin(admin.ModelAdmin):
 
     def used_by(self, obj):
         return obj.room_set.count()
+
+
+class PhotoInline(admin.TabularInline):
+
+    """ RoomAdmin에 Photo를 넣기위한 클래스 """
+
+    model = Photo
 
 
 class RoomAdmin(admin.ModelAdmin):
@@ -67,6 +75,10 @@ class RoomAdmin(admin.ModelAdmin):
         ),
     )
 
+    raw_id_fields = ("host",)
+
+    inlines = (PhotoInline,)
+
     list_display = (
         "name",
         "country",
@@ -81,6 +93,7 @@ class RoomAdmin(admin.ModelAdmin):
         "instant_book",
         "count_amenities",
         "count_photos",
+        "total_rating",
     )
 
     list_filter = (
@@ -111,6 +124,10 @@ class RoomAdmin(admin.ModelAdmin):
         "country",
     )
 
+    # def save_model(self, request, obj, form, change):
+    #     obj.city = obj.city.title()
+    #     return super().save_model(request, obj, form, change)
+
     def count_amenities(self, obj):
         return obj.amenities.count()
 
@@ -122,7 +139,15 @@ class PhotoAdmin(admin.ModelAdmin):
 
     """ Photo Admin Definition """
 
-    pass
+    list_display = (
+        "__str__",
+        "get_thumbnail",
+    )
+
+    def get_thumbnail(self, obj):
+        return mark_safe(f"<img style='height: 50px;' src='{obj.file.url}' />")
+
+    get_thumbnail.short_description = "Tumbnail"
 
 
 admin.site.register(Room, RoomAdmin)

@@ -20,3 +20,21 @@ class Review(TimeStampedModel):
 
     def __str__(self):
         return f"{self.content} - {self.room.name}"
+
+    def average_score(self):
+        score = (
+            sum(
+                [
+                    self.accuracy,
+                    self.communication,
+                    self.cleanliness,
+                    self.location,
+                    self.check_in,
+                    self.value,
+                ]
+            )
+            / 6
+        )
+
+        # return f"{score:.2f}"
+        return round(score, 2)

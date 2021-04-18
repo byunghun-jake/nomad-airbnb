@@ -13,3 +13,8 @@ class List(TimeStampedModel):
 
     def __str__(self):
         return f"{self.name} by. {self.user.username}"
+
+    def count_rooms(self):
+        return self.rooms.count()
+
+    count_rooms.short_description = "Number of Rooms"

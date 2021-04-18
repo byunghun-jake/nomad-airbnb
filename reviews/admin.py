@@ -6,7 +6,11 @@ class ReviewAdmin(admin.ModelAdmin):
 
     """ Review Admin Definition """
 
-    pass
+    list_display = (
+        "__str__",
+        "user",
+        "average_score",
+    )
 
 
 admin.site.register(Review, ReviewAdmin)

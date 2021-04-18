@@ -11,7 +11,14 @@ class Conversation(TimeStampedModel):
     participants = models.ManyToManyField(get_user_model(), blank=True)
 
     def __str__(self):
-        return f"{self.created_at}"
+        username_list = []
+        participants = self.participants.all()
+        for participant in participants:
+            username_list.append(participant.username)
+        return ", ".join(username_list)
+
+    def count_participants(self):
+        return self.participants.count()
 
 
 # 대화에서 사용되는 메세지를 만드는 클래스

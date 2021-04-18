@@ -1,6 +1,11 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth import get_user_model
+from rooms.models import Room
+
+
+class RoomInline(admin.StackedInline):
+    model = Room
 
 
 class CustomUserAdmin(UserAdmin):
@@ -21,6 +26,27 @@ class CustomUserAdmin(UserAdmin):
                 ),
             },
         ),
+    )
+
+    inlines = (RoomInline,)
+
+    list_display = [
+        "username",
+        "first_name",
+        "last_name",
+        "email",
+        "language",
+        "currency",
+        "is_active",
+        "is_staff",
+        "is_superhost",
+        "is_superuser",
+    ]
+
+    list_filter = UserAdmin.list_filter + (
+        "language",
+        "currency",
+        "is_superhost",
     )
 
 

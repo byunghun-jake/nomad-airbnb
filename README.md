@@ -1503,6 +1503,518 @@ class ItemAdmin(admin.ModelAdmin):
 
 
 
+---
+
+
+
+## #8
+
+
+
+### Review Admin
+
+
+
+- Admin 페이지에서 평균 점수를 보여주고 싶다.
+
+  하지만, 평균 점수는 Admin 페이지에서만 쓰는 게 아니라 실제 페이지에 데이터로도 쓸 수 있을 것 같다.
+
+  따라서, `reviews/admin.py`에 작성하지 않고 `reviews/models.py`에 작성한다.
+
+  ```python
+  def mean_score(self):
+          score = (
+              sum(
+                  [
+                      self.accuracy,
+                      self.communication,
+                      self.cleanliness,
+                      self.location,
+                      self.check_in,
+                      self.value,
+                  ]
+              )
+              / 6
+          )
+  
+          return f"{score:.2f}"
+  ```
+
+  > f-string 에서 소수점 표현하는 방식 기억하기
+  >
+  > `f"{value:.3f}"` : 소수점 셋째 자리까지 표현
+
+
+
+
+
+### Reservation Admin
+
+1. 현재 시간과 check_in / check_out 시간을 비교하여, 방에 대한 예약이 진행중인지 확인하는 `is_in_progress`를 만들자
+
+   - python 라이브러리를 사용하지 않고, Django의 모듈을 사용하였다.
+
+     ```python
+     import datetime							# 파이썬 라이브러리
+     from django.utils import timezone		# 장고 모듈
+     ```
+
+     > 장고 settings.py 에서 봤던 것 처럼, 장고는 서버의 시간대(TIME_ZONE)를 따로 관리하고 있기 때문
+
+   - date와 datetime은 비교할 수 없다.
+
+     ```bash
+     >>> timezone.now() < reservation.check_in
+     Traceback (most recent call last):
+     File "<console>", line 1, in <module>
+     TypeError: can't compare datetime.datetime to datetime.date
+     ```
+
+     동등히 비교
+
+     ```python
+     >>> timezone.now().date() > reservation.check_in
+     >>> True
+     ```
+
+   - `boolean` 속성을 주어, 아이콘으로 볼 수 있도록 해보자
+
+     ```python
+     # models.py
+     
+     is_in_progress.boolean = True
+     ```
+
+   
+
+2. 예약이 만료되었는지 확인할 수 있는 `is_finished`를 만들자
+
+   ```python
+   # models.py
+   
+   def is_finished(self):
+       today = timezone.now().date()
+       return self.check_out < today
+   
+   is_finished.boolean = True
+   ```
+
+   
+
+3. model에서 만든 `is_in_progress`와 `is_finished`를 Admin 페이지에 사용해보자
+
+   `list_display`에 추가하는 것은 가능했지만, **`list_filter`에 추가하니 오류가 발생했다.**
+
+   ```python
+   ERRORS:
+   <class 'reservations.admin.ReservationAdmin'>: (admin.E116) The value of 'list_filter[1]' refers to 'is_in_progress', which does not refer to a Field.
+   <class 'reservations.admin.ReservationAdmin'>: (admin.E116) The value of 'list_filter[2]' refers to 'is_finished', which does not refer to a Field.
+   ```
+
+   
+
+   
+
+### List Admin
+
+
+
+1. 리스트 안에 몇 개의 방을 저장해두었는지 알 수 있도록 하자
+
+   ```python
+   # lists/models.py
+   
+   def count_rooms(self):
+       return self.rooms.count()
+   
+   count_rooms.short_description = "Number of rooms"
+   ```
+
+
+
+
+
+### Conversation Admin
+
+
+
+1. Message의 `list_display` 수정
+
+2. Conversation의 `list_display`, `filter_horizontal` 수정
+
+3. Conversation의 `__str__` 수정 (참여한 이용자들의 username이 출력되도록)
+
+   참여한 이용자들의 수를 반환하는 `count_participants` 메서드를 정의
+
+   ```python
+   # conversations/models.py
+   
+   class Conversation(TimeStampedModel):
+   
+       """ Conversation Model Definition """
+   
+       # 대화에 참여하는 사람은 여러명(3명 이상)이 될 수 있다.
+       participants = models.ManyToManyField(get_user_model(), blank=True)
+   
+       def __str__(self):
+           username_list = []
+           participants = self.participants.all()
+           for participant in participants:
+               username_list.append(participant.username)
+           return ", ".join(username_list)
+   
+       def count_participants(self):
+           return self.participants.count()
+   ```
+
+   - `join`
+
+     `"접합자".join(붙일 이터러블 요소)`
+
+     
+
+### Photo(Media) [중요!]
+
+#### 설정 전
+
+> 아직 Photo를 위해 어떠한 설정도 해주지 않은 상태
+>
+> 지금 photo를 업로드하면, 프로젝트의 루트 폴더에 파일이 업로드 된다.
+
+![image-20210416162427047](README.assets/image-20210416162427047.png)
+
+
+
+업로드한 이미지를 확인할 수는 있을까?
+
+![image-20210416162502544](README.assets/image-20210416162502544.png)
+
+> 경로를 찾을 수 없다고 한다.
+>
+> 아직 우리는 경로설정을 해주지 않았다. 따라서, 이미지를 보여달라고 다음 주소(`/KakaoTalk_20201222_232526708_2.png`)로 요청이 들어오더라도 Django는 지정된 동작이 없기 때문에 아무 일도 하지 않는다.
+>
+> 이 결과 페이지를 찾을 수 없다는 에러가 발생하게 되는 것.
+
+
+
+#### 설정 하기
+
+> 크게 두 과정을 거칩니다.
+>
+> 1. 업로드 하는 파일의 위치 지정
+> 2. 파일 요청 시 응답할 행동 설정
+
+##### 1. Upload하는 파일의 위치 지정 (MEDIA_ROOT & upload_to)
+
+> MEDIA_ROOT
+>
+> 업로드하는 파일의 루트 디렉토리를 지정해주는 변수이다.
+
+```python
+# config/settings.py
+
+# Django 3.1 이전 방식
+MEDIA_ROOT = os.path.join(BASE_DIR, "uploads")
+
+# Django 3.1 이후 방식
+MEDIA_ROOT = BASE_DIR / "uploads"
+```
+
+
+
+파일을 업로드 했을 때, 파일의 위치
+
+`BASE_DIR / "uploads"`
+
+![image-20210416232859492](README.assets/image-20210416232859492.png)
+
+하지만, 이미지는 아직 확인할 수 없다.
+
+![image-20210416232944473](README.assets/image-20210416232944473.png)
+
+
+
+> upload_to
+>
+> FileField의 인자 중 하나로 MEDIA_ROOT를 기준으로 어느 디렉토리에 저장할 지 지정할 수 있다.
+>
+> **이 필드에 대응되는 파일에 대한 세부 설정**
+
+```python
+# users/models.py
+
+class User(AbstractUser):
+	# ...
+    avatar = models.ImageField(blank=True, upload_to="avatars")		# BASE_DIR / "uploads" / "avatars" 에 저장
+```
+
+```python
+# rooms/models.py
+
+class Photo(TimeStampedModel):
+    # ...
+    file = models.ImageField(upload_to="room_photos")				# BASE_DIR / "uploads" / "room_photos" 에 저장
+```
+
+필드를 변경해주었기 때문에 migration을 진행합니다.
+
+```bash
+$ python manage.py makemigraions
+$ python manage.py migrate
+```
+
+![image-20210416233924697](README.assets/image-20210416233924697.png)
+
+
+
+하지만, 아직 이미지를 확인할 수는 없다!
+
+
+
+##### 2. url 설정
+
+> 1. MEDIA_URL
+> 2. urls.py
+
+
+
+MEDIA_URL은 MEDIA_ROOT에서 제공되는 미디어(파일)을 처리하는 URL이다.
+
+```python
+# config/settings.py
+
+MEDIA_URL = "/media/"
+# 파일에 대한 요청의 루트 주소는 media이다.
+# 뒤에 파일 경로가 이어지므로 슬래시(/)로 끝나야한다.
+```
+
+![image-20210416235402899](README.assets/image-20210416235402899.png)
+
+MEDIA_URL을 정의한 뒤 파일 요청 경로가 변경된 것을 확인할 수 있다.
+
+변경 전: `http://127.0.0.1:8000/uploads/avatars/20200119_122532-removebg-preview.png`
+
+변경 후: `http://127.0.0.1:8000/media/avatars/20200119_122532-removebg-preview.png`
+
+
+
+
+
+파일 요청 경로에 맞춰 적절한 파일을 리턴해줘야 한다. 즉, 요청한 경로에 맞는 동작을 하도록 설정해주어야 한다.
+
+```python
+from django.contrib import admin
+from django.urls import path
+from django.conf import settings
+from django.conf.urls.static import static
+
+urlpatterns = [
+    path("admin/", admin.site.urls),
+]
+
+# 로컬에서 실행할 때에만 작동하도록 하고 싶다면?
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# settings 파일의 MEDIA_URL로 지정해 둔 경로를 통해 요청이 들어오는 경우
+# 확인해야 할 디렉토리의 루트는 settings 파일의 MEDIA_ROOT 이다.
+```
+
+
+
+모든 작업이 끝난 뒤, 사진을 확인해보니 제대로 나오는 것을 확인할 수 있었다.
+
+MEDIA 파일을 다루기 위한 순서를 다시 정리해보자
+
+1. 업로드 한 MEDIA 파일이 위치할 루트 디렉토리 설정 (기본값은 BASE_DIR)
+
+   settings의 MEDIA_ROOT
+
+   `MEDIA_ROOT = BASE_DIR / "uploads"`
+
+2. 각 필드 별로 세부 디렉토리 설정
+
+   `upload_to`
+
+3. 미디어 파일 요청 경로 설정
+
+   `MEDIA_URL`
+
+4. 요청 응답을 위한 동작 설정
+
+   `static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)`
+
+
+
+---
+
+- photo admin 설정
+
+  - 커스텀한 admin 클래스에서 메서드를 선언할 때, 필수로 받는 인자인 self, obj
+    photo에서 이 두개를 받아 출력하면 다음과 같은 내용이 나온다.
+
+    ```python
+    def get_thumbnail(self, obj):
+        print(obj)				# __str__
+        print(obj.file)			# room_photos/수와_표현_4.jpg
+        print(type(obj.file))	# <class 'django.db.models.fields.files.ImageFieldFile'>
+        return ""
+    ```
+
+    `obj`를 출력하면 `__str__`이 출력되고, `obj.file`을 출력하면 그 파일의 이름만 출력된다.
+
+    `obj.file`은 문자열인 것 같지만, **클래스**이다.
+
+    
+
+    `dir(obj.file)`을 출력하여, 어떤 것들을 사용할 수 있는지 확인해보자
+
+    ```python
+    [..., 'chunks', 'close', 'closed', 'delete', 'encoding', 'field', 'file', 'fileno', 'flush', 'height', 'instance', 'isatty', 'multiple_chunks', 'name', 'newlines', 'open', 'path', 'read', 'readable', 'readinto', 'readline', 'readlines', 'save', 'seek', 'seekable', 'size', 'storage', 'tell', 'truncate', 'url', 'width', 'writable', 'write', 'writelines']
+    ```
+
+    
+
+  - path와 url
+
+    path는 파일의 절대경로를 나타낸다.
+    `D:\Code\Study\nomad-airbnb\uploads\room_photos\수와_표현_4.jpg`
+
+    url은 파일의 상대경로를 나타내며, MEDIA_URL의 값에 의해 루트 주소가 결정된다.
+    `/media/room_photos/%EC%88%98%EC%99%80_%ED%91%9C%ED%98%84_4.jpg`
+
+    
+
+  - list_display에 thumbnail을 넣기
+
+    - mark_safe
+
+      사이트에 태그를 삽입하는 것은 대부분 보안에 의해 막혀있는 경우가 많다.
+      DJango 역시 예외는 아니었다.
+      thumbnail을 위해 `img tag`를 삽입하려면, 이 태그는 안전하다(safe)는 표시(mark)가 필요하고, django에서는 `mark_safe`를 이용하면 된다.
+
+    ```python
+    from django.utils.safestring import mark_safe
+    
+    def get_thumbnail(self, obj):
+        return mark_safe(f"<img src='{obj.file.url}' />")
+    ```
+
+    
+
+- Room Admin 설정
+
+  - Host를 select 방식으로 선택하는 것에서 검색을 통해 선택할 수 있도록 변경하기
+
+    - **raw_id_fields** [링크](https://docs.djangoproject.com/en/3.2/ref/contrib/admin/#django.contrib.admin.ModelAdmin.raw_id_fields)
+
+      > By default, Django’s admin uses a select-box interface (<select>) for fields that are `ForeignKey`. Sometimes you don’t want to incur the overhead of having to select all the related instances to display in the drop-down.
+      >
+      > `raw_id_fields` is a list of fields you would like to change into an `Input` widget for either a `ForeignKey` or `ManyToManyField`:
+
+    
+
+  - 이 방과 연결된 사진을 한 번에 확인할 수 있도록 하기
+
+    - **InlineModelAdmin** [링크](https://docs.djangoproject.com/en/3.2/ref/contrib/admin/#django.contrib.admin.InlineModelAdmin)
+
+      > The admin interface has the ability to edit models on the same page as a parent model. These are called inlines. Suppose you have these two models:
+      >
+      > - TabularInline
+      > - StackedInline
+
+  ```python
+  class PhotoInline(admin.TabularInline):
+      model = Photo
+  
+  class RoomAdmin(admin.ModelAdmin):
+      raw_id_fields = ("host",)
+      inlines = (PhotoInline,)
+  ```
+
+  
+
+- User Admin 설정
+
+  - 이용자 페이지에서 숙소 관리를 할 수 있도록 하기
+    - InlineModelAdmin
+
+  ```python
+  class RoomInline(admin.StactedInline):
+      model = Room
+  
+  class CustomUserAdmin(UserAdmin):
+      inlines = (RoomInline,)
+  ```
+
+  
+
+- Class와 상속
+
+  ```python
+  class Dog:
+      def __init__(self):
+          print("왈왈!")
+  	def pee(self):
+          print("나 오줌 쌀거야!!")
+  
+  pug = Dog()				# 왈왈!
+  
+  class Puppy(Dog):		# 상속
+      def pee(self):
+          print("공원으로 가자!")
+          super().pee()	# 부모 클래스의 pee() 메서드를 실행
+  
+  puppy1 = Puppy()		# 왈왈!
+  puppy1.pee()			# 공원으로 가자!
+  						# 나 오줌 쌀거야!
+  ```
+
+  
+
+- Room 생성 및 업데이트 시, 도시 이름을 대문자로 만들어보자
+
+  > 두 방법 모두 사용 가능하지만, NICO를 따라 Model을 커스텀하는 것으로 함
+
+  - Overriding predefined model methods [링크](https://docs.djangoproject.com/en/3.2/topics/db/models/#overriding-predefined-model-methods)
+
+    > Model에서 save 메서드를 커스텀하는 방법
+
+    ```python
+    def save(self, *args, **kwargs):
+        self.city = self.city.title()
+        super().save(*args, **kwargs)
+    ```
+
+    
+
+  - save_model [[링크]](https://docs.djangoproject.com/en/3.2/ref/contrib/admin/#django.contrib.admin.ModelAdmin.save_model)
+
+    > Admin에서 save 메서드를 커스텀하는 방법 (Admin에서만 적용)
+
+    ```python
+    def save_model(self, request, obj, form, change):
+        obj.city = obj.city.title()
+        return super().save_model(request, obj, form, change)
+    ```
+
+    
+
+  - `str.capitalize()` vs `문자.title()`
+
+    capitalize는 전체 문자에서 첫 번째 문자만 대문자로 변환하고,
+
+    title은 공백 이후에 등장하는 첫 번째 문자들을 대문자로 변환한다.
+
+
+
+
+
+
+
+
+
+
+
 
 
 

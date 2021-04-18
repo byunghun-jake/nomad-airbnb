@@ -140,3 +140,11 @@ STATIC_URL = "/static/"
 # https://docs.djangoproject.com/en/3.1/topics/auth/customizing/#substituting-a-custom-user-model
 
 AUTH_USER_MODEL = "users.User"
+
+
+# Media files
+
+MEDIA_ROOT = BASE_DIR / "uploads"
+# MEDIA_ROOT = os.path.join(BASE_DIR, "uploads")
+
+MEDIA_URL = "/media/"
