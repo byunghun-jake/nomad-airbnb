@@ -23,9 +23,20 @@
   - [x] Queryset
   - [x] Django ORM
   - [x] Room / Item Admin (역참조)
-- [ ] More Admin
-  - [ ] Review Admin and Room Average
-  - [ ] 
+- [x] More Admin
+  - [x] Review Admin and Room Average
+  - [x] Reservation
+  - [x] List
+  - [x] Conversation
+  - [x] Room (MEDIA)
+- [x] CUSTOM COMMANDS AND SEEDING (4월 23일)
+  - [x] custom manage py commands & django_seed
+  - [x] Amenity, Facility
+  - [x] User
+  - [x] Room
+  - [x] Review
+  - [x] List
+  - [x] Reservation
 
 
 
@@ -2004,6 +2015,609 @@ MEDIA 파일을 다루기 위한 순서를 다시 정리해보자
     capitalize는 전체 문자에서 첫 번째 문자만 대문자로 변환하고,
 
     title은 공백 이후에 등장하는 첫 번째 문자들을 대문자로 변환한다.
+
+
+
+---
+
+
+
+## #9 Custom commands and Seeding
+
+
+
+더미 데이터 만들기
+
+1. 원하는 동작을 수행하기 위해 커스텀 커맨드를 만든다. 
+2. 
+
+
+
+### Writing Custom Commands
+
+> [[참고]](https://docs.djangoproject.com/en/3.2/howto/custom-management-commands/#module-django.core.management)
+
+1. Command에 의해 실행될 파일을 생성합니다.
+
+   ```
+   rooms/
+   	__init__.py
+   	management/
+   		__init__.py
+   		commands/
+   			__init__.py
+   			loveyou.py
+   ```
+
+   ```python
+   from django.core.management.base import BaseCommand
+   
+   
+   class Command(BaseCommand):
+       help = "This command tells me that I love you"
+   
+       def add_arguments(self, parser):
+           parser.add_argument(
+               "--times", help="How many times do you want me to tell you that I love you?"
+           )
+   
+       def handle(self, *args, **options):
+           times = options.get("times")
+           for _ in range(int(times)):
+               print("I love you")
+   ```
+
+2. 파일을 실행합니다.
+
+   ```bash
+   $ python manage.py loveyou  --times 50
+   I love you
+   I love you
+   I love you
+   ...
+   ```
+
+   
+
+---
+
+### Seed_amenities
+
+> Amenity를 추가하기 위한 코드
+
+```python
+from django.core.management.base import BaseCommand
+from rooms.models import Amenity
+
+
+class Command(BaseCommand):
+    help = "어메니티를 생성하기 위한 코드"
+
+    def handle(self, *args, **kwargs):
+        amenities = [
+            "Air conditioning",
+            # ...
+            "TV",
+        ]
+        for amenity in amenities:
+            try:
+                Amenity.objects.get(name=amenity)
+            except:
+                Amenity.objects.create(name=amenity)
+        self.stdout.write(self.style.SUCCESS("어메니티 생성이 완료되었습니다!"))
+
+```
+
+
+
+### Seed_Facilities
+
+> Facility를 추가하기 위한 코드
+
+```python
+from django.core.management.base import BaseCommand
+from rooms.models import Facility
+
+
+class Command(BaseCommand):
+    help = "시설을 생성하기 위한 코드"
+
+    def handle(self, *args, **kwargs):
+        facilities = [
+            "Private entrance",
+            # ...
+            "Gym",
+        ]
+        count = 0
+        for facility in facilities:
+            try:
+                Facility.objects.get(name=facility)
+            except:
+                Facility.objects.create(name=facility)
+                count += 1
+        else:
+            print(f"{count}개의 시설을 추가하였습니다.")
+
+```
+
+
+
+---
+
+
+
+## Django seed
+
+
+
+장고 시드 설치
+
+```bash
+$ pip install django-seed
+$ pip freeze > requirements.txt
+```
+
+앱 등록
+
+```python
+INSTALLED_APPS = (
+	"django_seed",
+)
+```
+
+
+
+### Seed User
+
+> 유저를 먼저 생성해보자
+
+```python
+# users/management/commands/seed_users.py
+
+from django.core.management.base import BaseCommand
+from django.contrib.auth import get_user_model
+from django_seed import Seed
+
+
+class Command(BaseCommand):
+    help = "가짜 이용자를 만들기 위한 커맨드"
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--number",
+            default=1,
+            type=int,
+            help="몇 명의 유저를 생성하시겠습니까?",
+        )
+
+    def handle(self, *args, **options):
+        number = options.get("number")
+        seeder = Seed.seeder()
+        
+        # 세번째 인자로 특별히 다룰 컬럼에 대한 설정을 해줍니다.
+        seeder.add_entity(
+            get_user_model(),
+            number,
+            {
+                "is_staff": False,
+                "is_superuser": False,
+            },
+        )
+        # 생성한 seeder를 실행합니다.
+        seeder.execute()
+        print(f"{number}명의 유저를 추가하였습니다.")
+```
+
+
+
+### Seed Room
+
+> 방을 생성하는 seed를 만들어봅시다.
+
+- `add_arguments()` 메서드
+
+  명령어에 옵션을 추가하기 위해 사용합니다.
+
+- seeder를 이용하는 방법
+
+  1. `seeder` 인스턴스를 생성합니다.
+  2. `seeder.add_entity()` 메서드
+     seeder를 이용해 생성하고자 하는 객체를 지정합니다.
+     - 첫 번째 인자로 어떤 모델에 대응하는 객체인지 지정합니다.
+     - 두 번째 인자로 몇 개의 객체를 생성할 지 지정합니다.
+     - 세 번째 인자로 직접 커스텀하고 싶은 컬럼이 있다면, 해당 내용을 지정합니다.
+  3. `seeder.execute()` 메서드
+     seeder를 실행합니다.
+
+- `lambda`
+
+  람다 표현식으로 익명 함수를 생성할 수 있습니다.
+
+  ```python
+  list(map(lambda x: x + 10, [1, 2, 3]))
+  # [11, 12, 13]
+  ```
+
+- 방의 사진을 생성하는 방법
+
+  ```python
+  from django.contrib.admin.utils import flatten
+  from room.models import Room, Photo
+  
+  # 생성한 방 객체를 변수에 저장
+  # (seeder에 의해 만들어진 객체는 리턴값이 방 객체 그 자체가 아닌 듯 하다)
+  new_rooms = seeder.execute()
+  # 객체에서 pk값을 추출
+  for room_pk in flatten(new_room.values()):
+      # pk값을 이용해 만들어진 방 객체를 가져옴
+      room = Room.objects.get(pk=room_pk)
+      # 사진 생성
+      for i in range(3, 5):
+          Photo.objects.create(
+              caption=seeder.faker.sentence(),
+              file=f"/room_photos/{random.randint(1, 31)}",
+              room=room
+          )
+  ```
+
+  
+
+- ManyToMany 관계를 갖는 필드에 객체를 추가로 연결하려고 할 때
+
+  ```python
+  # amenity 추가
+  for amenity in amenities:
+      if random.randint(0, 1):
+          room.amenities.add(amenity)
+          
+  # facility 추가
+  for facility in facilities:
+  	if random.randint(0, 1):
+  		room.facilities.add(facility)
+  # house_rule 추가
+  for house_rule in house_rules:
+  	if random.randint(0, 1):
+  		room.house_rules.add(house_rule)
+  ```
+
+  
+
+```python
+import random
+from django.contrib.admin.utils import flatten
+from django.core.management.base import BaseCommand
+from django.contrib.auth import get_user_model
+from django_seed import Seed
+from rooms.models import Room, RoomType, Amenity, Facility, HouseRule, Photo
+
+
+class Command(BaseCommand):
+    help = "가짜 방을 생성하기 위한 커맨드"
+
+    def add_arguments(self, parser):
+        # 첫 번째 인자: 어떤 문자를 argument 신호로 줄 지
+        parser.add_argument("--number", default=1, type=int, help="얼마나 많은 방을 생성할까요?")
+
+    def handle(self, *args, **options):
+        number = options.get("number")
+        # Room의 Foreign Key를 위해 연결된 모델을 불러옵니다.
+        users = get_user_model().objects.all()[:25]
+        room_types = RoomType.objects.all()
+        amenities = Amenity.objects.all()
+        facilities = Facility.objects.all()
+        house_rules = HouseRule.objects.all()
+
+        # seeder 인스턴스를 생성합니다.
+        seeder = Seed.seeder()
+        # seeder에 어떤 걸 생성하고 싶은지 추가합니다.
+        # entity: 실체, 객체
+        # 첫 번째 인자로 어떤 모델에 대한 객체인지 알려줍니다.
+        # 두 번째 인자로 몇 개의 객체를 생성할지 알려줍니다.
+        # 세 번째 인자로 모델의 컬럼을 직접 커스텀하고 싶은 내용을 전달합니다.
+        # key(컬럼) - value(들어갈 값)
+        # 모델끼리 연결된 경우(ForeignKey) 세 번째 인자로 지정해주어야 합니다.
+        seeder.add_entity(
+            Room,
+            number,
+            {
+                "name": lambda x: seeder.faker.company(),
+                "host": lambda x: random.choice(users),
+                "room_type": lambda x: random.choice(room_types),
+                "price": lambda x: random.randint(100, 2000),
+                "beds": lambda x: random.randint(0, 10),
+                "bedrooms": lambda x: random.randint(0, 5),
+                "baths": lambda x: random.randint(1, 6),
+                "max_guests": lambda x: random.randint(1, 20),
+            },
+        )
+
+        # seeder를 실행합니다.
+        # 생성한 room 객체를 변수에 담습니다.
+        # 여러 방을 생성한 경우 방 목록이 담깁니다.
+        new_room = seeder.execute()
+        # print(room)
+        # print(flatten(new_room.values()))
+        for room_pk in flatten(new_room.values()):
+            room = Room.objects.get(pk=room_pk)
+            # room의 사진 추가
+            for _ in range(3, random.randint(5, 10)):
+                Photo.objects.create(
+                    caption=seeder.faker.sentence(),
+                    file=f"/room_photos/{random.randint(1, 31)}.webp",
+                    room=room,
+                )
+            # amenity 추가
+            for amenity in amenities:
+                if random.randint(0, 1):
+                    room.amenities.add(amenity)
+            # facility 추가
+            for facility in facilities:
+                if random.randint(0, 1):
+                    room.facilities.add(facility)
+            # house_rule 추가
+            for house_rule in house_rules:
+                if random.randint(0, 1):
+                    room.house_rules.add(house_rule)
+
+        print(f"{number}개의 방을 생성했습니다.")
+```
+
+
+
+
+
+### Seed Review
+
+> 방에 대한 리뷰를 만들어봅시다.
+
+
+
+- 점수에 제한을 주기 위해 `random.randint()`를 사용하였습니다.
+- user와 room은 ForeignKey로 연결되어 있기에 `random.choice()`를 사용하였습니다.
+
+
+
+```python
+import random
+from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand
+from django_seed import Seed
+from reviews.models import Review
+from rooms.models import Room
+
+
+class Command(BaseCommand):
+    help = "방에 대한 리뷰를 생성하는 시드입니다."
+
+    def add_arguments(self, parser):
+        parser.add_argument("--number", default=1, type=int, help="리뷰를 몇개 생성할까?")
+
+    def handle(self, *args, **options):
+        users = get_user_model().objects.all()
+        rooms = Room.objects.all()
+        number = options.get("number")
+        seeder = Seed.seeder()
+        seeder.add_entity(
+            Review,
+            number,
+            {
+                "user": lambda x: random.choice(users),
+                "room": lambda x: random.choice(rooms),
+                "content": lambda x: seeder.faker.paragraph(),
+                "accuracy": lambda x: random.randint(3, 5),
+                "communication": lambda x: random.randint(3, 5),
+                "cleanliness": lambda x: random.randint(3, 5),
+                "location": lambda x: random.randint(3, 5),
+                "check_in": lambda x: random.randint(3, 5),
+                "value": lambda x: random.randint(3, 5),
+            },
+        )
+        seeder.execute()
+        print(f"{number}개의 리뷰가 생성되었습니다.")
+```
+
+
+
+### Seed List
+
+- ManyToManyField인 필드에 값을 추가할 때, `add()` 메서드를 사용합니다.
+  이 메서드에 전달해주는 인자는 여러개를 한 번에 담아도 되는 것 같다.
+  애스터리스크를 이용해 배열을 요소단위로 쪼개 메서드에 전달하였더니 위(for문)와 동일한 작업을 수행함
+
+  ```python
+  for room in room_in_list:
+  	new_list.rooms.add(room)
+  ######################################
+  new_list.rooms.add(*room_in_list)
+  ```
+
+  
+
+```python
+import random
+from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand
+from django.contrib.admin.utils import flatten
+from django_seed import Seed
+from lists.models import List
+from rooms.models import Room
+
+
+class Command(BaseCommand):
+    help = "방을 저장하는 리스트를 만드는 씨드입니다."
+
+    def add_arguments(self, parser):
+        parser.add_argument("--number", default=1, type=int, help="리스트를 몇 개 만들까요?")
+
+    def handle(self, *args, **options):
+        users = get_user_model().objects.all()
+        rooms = Room.objects.all()
+        number = options.get("number")
+        seeder = Seed.seeder()
+        seeder.add_entity(
+            List,
+            number,
+            {
+                "user": lambda x: random.choice(users),
+                "name": lambda x: seeder.faker.name(),
+            },
+        )
+        new_lists = seeder.execute()
+        list_pk_list = flatten(new_lists.values())
+        for list_pk in list_pk_list:
+            new_list = List.objects.get(pk=list_pk)
+            room_in_list = random.sample(list(rooms), k=random.randint(3, 8))
+            # for room in room_in_list:
+            #     new_list.rooms.add(room)
+            #
+            new_list.rooms.add(*room_in_list)
+        print(f"{number}개의 리스트를 만들었습니다.")
+```
+
+
+
+### Seed Reservation
+
+#### django timezone & python datetime
+
+[Naive and aware datetime objects](https://docs.djangoproject.com/en/3.2/topics/i18n/timezones/#concepts)
+
+[django.utils.timezone](https://docs.djangoproject.com/en/3.2/ref/utils/#module-django.utils.timezone)
+
+
+
+- check_in & check_out은 어떻게 넣어주어야 할까?
+
+  ```python
+  import datetime
+  from django.utils import timezone
+  
+  "check_in": lambda x: timezone.now(),
+  "check_out": lambda x: timezone.now()
+  + datetime.timedelta(days=random.randint(2, 20)),
+  ```
+
+- status는 어떻게 들어갈까?
+
+  기본값으로 설정되어있는 STATUS_PENDING으로 설정된다.
+
+  변경하려면?
+
+  ```python
+  STATUS = (
+      "pending",
+      "confirmed",
+      "canceled",
+  )
+  ##########################
+  "status": lambda x: random.choice(STATUS),
+  ```
+
+
+
+```python
+import random
+import datetime
+from django.core.management import BaseCommand
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+from django_seed import Seed
+from rooms.models import Room
+from reservations.models import Reservation
+
+STATUS = (
+    "pending",
+    "confirmed",
+    "canceled",
+)
+
+
+class Command(BaseCommand):
+    help = "더미 예약을 만들기 위한 명령어"
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--number", default=1, type=int, help="몇 개의 예약을 생성할지 결정하세요."
+        )
+
+    def handle(self, *args, **options):
+        users = get_user_model().objects.all()
+        rooms = Room.objects.all()
+        number = options.get("number")
+        seeder = Seed.seeder()
+        seeder.add_entity(
+            Reservation,
+            number,
+            {
+                "guest": lambda x: random.choice(users),
+                "room": lambda x: random.choice(rooms),
+                "status": lambda x: random.choice(STATUS),
+                "check_in": lambda x: timezone.now().date(),
+                "check_out": lambda x: timezone.now().date()
+                + datetime.timedelta(days=random.randint(4, 20)),
+            },
+        )
+        seeder.execute()
+        print(f"{number}개의 예약이 생성되었습니다.")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

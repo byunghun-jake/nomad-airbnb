@@ -134,6 +134,9 @@ class RoomAdmin(admin.ModelAdmin):
     def count_photos(self, obj):
         return obj.photo_set.count()
 
+    count_amenities.short_description = "amenity count"
+    count_photos.short_description = "photo count"
+
 
 class PhotoAdmin(admin.ModelAdmin):
 

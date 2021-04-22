@@ -35,7 +35,7 @@ class Reservation(TimeStampedModel):
     def is_in_progress(self):
         # 현재 시간과 체크인, 체크아웃 시간을 비교한다.
         today = timezone.now().date()
-        return self.check_in <= today <= self.check_out
+        return self.check_in <= today
 
     is_in_progress.boolean = True
 
