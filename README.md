@@ -37,6 +37,8 @@
   - [x] Review
   - [x] List
   - [x] Reservation
+- [ ] INTRODUCTION TO VIEWS AND URLS
+  - [ ] 
 
 
 
@@ -2560,6 +2562,128 @@ class Command(BaseCommand):
         seeder.execute()
         print(f"{number}개의 예약이 생성되었습니다.")
 ```
+
+
+
+## #10 VIEW
+
+
+
+### Request
+
+> view 함수에 전달받는 첫 번째 인자인 request는 무엇일까?
+
+
+
+Django uses request and response objects to pass state through the system.
+
+When a page is requested, Django creates an [`HttpRequest`](https://docs.djangoproject.com/en/3.2/ref/request-response/#django.http.HttpRequest) object that contains metadata about the request. Then Django loads the appropriate view, passing the [`HttpRequest`](https://docs.djangoproject.com/en/3.2/ref/request-response/#django.http.HttpRequest) as the first argument to the view function. Each view is responsible for returning an [`HttpResponse`](https://docs.djangoproject.com/en/3.2/ref/request-response/#django.http.HttpResponse) object.
+
+
+
+### Template
+
+- Template 경로
+
+  Django는 기본적으로 INSTALLED_APPS에 있는 각각의 앱 내부에 있는 templates라는 폴더를 탐색합니다. 그 외에 탐색할 경로를 추가하기 위해서는 settings.py에 설정을 해주어야 합니다.
+
+  ```python
+  # config/settings.py
+  TEMPLATES = [
+      {
+          ...
+          "DIRS": [
+              BASE_DIR / "templates",
+          ],
+      }
+  ]
+  ```
+
+  
+
+- base template 만들기
+
+  Template의 공통된 부분을 상속시켜주기 위한 부모 템플릿을 만드는 것
+
+  ```
+  - templates
+  	- base.html
+  ```
+
+  - django tag
+
+    - block
+      자식 템플릿이 활용할 수 있는 공간
+
+      자식 템플릿에 사용하고 싶다면, 부모 템플릿과 자식 템플릿 모두 명시해야 한다.
+
+    - extends
+
+
+
+
+
+### Error
+
+#### TemplateDoesNotExist
+
+> view 함수에서 반환하는 `render()` 에 적힌 템플릿 주소에 해당하는 파일을 찾지 못했을 때
+
+
+
+### index page
+
+#### 페이지 설정
+
+1. config/urls.py 에서 rooms app에 있는 urls.py를 살펴볼 수 있도록 경로를 설정합니다.
+
+   ```python
+   # config/urls.py
+   path("", include("rooms.urls"))
+   ```
+
+2. view 함수를 생성합니다.
+
+   ```python
+   # rooms/views.py
+   def index(request):
+       ...
+   ```
+
+3. view 함수가 실행되었을 때, 리턴할 템플릿을 생성합니다.
+
+   ```python
+   # rooms/templates/rooms/index.py
+   ```
+
+4. 주소와 view 함수를 연결합니다. **(Done!)**
+
+   ```python
+   # rooms/urls.py
+   path("", views.index, name="index")
+   ```
+
+
+
+#### Template (index.html)
+
+- for
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
