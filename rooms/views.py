@@ -1,13 +1,20 @@
 from datetime import datetime
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.utils import timezone
+from django.core.paginator import Paginator
+from django.views.generic import ListView
 from .models import Room
 
 
 def index(request):
-    # 모든 방 정보를 불러온다.
-    rooms = Room.objects.all()
-    context = {
-        "rooms": rooms,
-    }
-    return render(request, "rooms/index.html", context)
+    page = int(request.GET.get("page", 1))
+    room_list = Room.objects.all()
+    paginator = Paginator(room_list, 10)
+    try:
+        pages = paginator.page(page)
+        context = {
+            "pages": pages,
+        }
+        return render(request, "rooms/index.html", context)
+    except:
+        return redirect("rooms:index")

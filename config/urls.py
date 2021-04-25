@@ -20,7 +20,8 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("", include("rooms.urls")),
+    path("rooms/", include("rooms.urls")),
+    path("", include("core.urls")),
 ]
 
 # 로컬에서 실행할 때에만 작동하도록 하고 싶다면?

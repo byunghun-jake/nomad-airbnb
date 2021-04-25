@@ -2671,15 +2671,304 @@ When a page is requested, Django creates an [`HttpRequest`](https://docs.djangop
 
 
 
+## #11 Home View
 
 
 
+### Pagination
+
+#### 1. Manual way
+
+> query를 이용
+
+- 게으른 쿼리
+
+  ```python
+  rooms = Room.objects.all()[0:5]
+  ```
+
+  위 코드는 모든 방을 불러온 뒤, 앞에서 5개만 추출하는 방식으로 작동하지 않는다.
+
+  모든 방들 중 앞에서 5개만 불러오는 방식으로 작동한다.
+
+  ```
+  일반적으로 쿼리셋(A)을 자르는 것은 새로운 쿼리셋(B)을 만들며, 이것은 쿼리(A)를 검사(실행)하지 않는다.
+  ```
+
+  
+
+- 주소에서 query를 받아오는 방법 [공식문서](https://docs.djangoproject.com/en/3.1/ref/request-response/#django.http.HttpRequest.GET)
+
+  `request.GET`
+
+  A dictionary-like object containing all given HTTP GET parameters. See the [`QueryDict`](https://docs.djangoproject.com/en/3.1/ref/request-response/#django.http.QueryDict) documentation below.
+
+  
+
+- `dict.get("key", default)`
+
+  딕셔너리에서 key를 이용해 값을 불러올 때, 2번째 인자로 기본값을 설정할 수 있다.
+  `get()` 메서드는 key가 없어도 에러를 발생시키지 않기 때문에 이번 경우에는 유용하게 사용할 수 있다.
 
 
 
+```python
+# rooms/views.py
+
+def index(request):
+    page = int(request.GET.get("page", 1))
+    # 1. 0이하의 값을 넣으면?
+    # 2. 값을 넣지 않으면?
+    limit = 10
+    end = limit * page
+    start = end - limit
+    rooms = Room.objects.all()[start:end]
+    room_count = Room.objects.count()
+    page_count = room_count // limit
+    if room_count % limit:
+        page_count += 1
+    # 이전 / 다음 페이지
+    before_page = next_page = 0
+    if 1 < page:
+        before_page = page - 1
+    if page < page_count:
+        next_page = page + 1
+    # print(before_page, next_page)
+    context = {
+        "rooms": rooms,
+        "page": page,
+        "page_count": page_count,
+        "page_range": range(1, page_count + 1),
+        "before_page": before_page,
+        "next_page": next_page,
+    }
+    return render(request, "rooms/index.html", context)
+```
 
 
 
+```django
+{% block content %}
+  <h1>Index</h1>
+  <h3>Rooms</h3>
+  <ul>
+    {% for room in rooms %}
+    <li>{{ room.name }}</li>
+    {% endfor %}
+  </ul>
+  <hr>
+  <h4>{{ page }} 페이지 / {{ page_count }}페이지 </h4>
+  <div>
+    {% if before_page %}
+      <a href="?page={{ before_page }}">이전</a>
+    {% endif %}
+    {% for page_num in page_range %}
+      {% if page_num == page %}
+      <a href="?page={{ page_num }}">
+        <b>{{ page_num }}</b>
+      </a>
+      {% else %}
+      <a href="?page={{ page_num }}">{{ page_num }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if next_page %}
+      <a href="?page={{ next_page }}">다음</a>
+    {% endif %}
+  </div>
+{% endblock content %}
+```
+
+
+
+#### 2. Django way
+
+- QuerySet is Lazy
+
+  ```python
+  def index(request):
+      rooms = Room.objects.all()		# 평가되지 않는다.
+      print(rooms)					# 평가된다.
+  ```
+
+  
+
+- Django Paginator
+
+  ```python
+  def index(request);
+  	page = int(request.GET.get("page", 1))
+      room_list = Room.objects.all()
+      limit = 10
+      
+      paginator = Paginator(room_list, limit)
+      # 첫 번째 인자: 원본 리스트
+      # 두 번째 인자: 페이지 당 객체의 수
+      # orphans: 페이지 당 객체의 수를 채우지 못한 경우, 이전 페이지와 병합하는 개수
+      
+      rooms = paginator.get_page(page)
+      print(dir(rooms))
+      """
+      [..., 'count', 'end_index', 'has_next', 'has_other_pages', 'has_previous', 'index', 'next_page_number', 'number', 'object_list', 'paginator', 'previous_page_number', 'start_index']
+      """
+  
+      print(dir(rooms.paginator))
+      """
+      [... 'allow_empty_first_page', 'count', 'get_page', 'num_pages', 'object_list', 'orphans', 'page', 'page_range', 'per_page', 'validate_number']
+      """
+  ```
+
+  - 전체 페이지 확인: `rooms.paginator.num_pages`
+
+  - 현 페이지: `rooms.number`
+  - 다음 페이지가 있을까?: `rooms.has_next`
+  - 다음 페이지: `rooms.next_page_number`
+  - 이전 페이지가 있을까?: `rooms.has_previous`
+  - 이전 페이지: `rooms.previous_page_number`
+  - 페이지 범위: `rooms.paginator.page_range`
+
+  
+
+  - `get_page` or `page`
+
+    접근 가능한 페이지가 아닌 페이지에 방문하는 경우
+
+    - 에러 발생: `page`
+      - InvalidPage
+
+    ```python
+    def index(request):
+        page = int(request.GET.get("page", 1))
+        room_list = Room.objects.all()
+        paginator = Paginator(room_list, 10)
+        try:
+            pages = paginator.page(page)
+        except:
+            pages = paginator.page(1)
+        context = {
+            "pages": pages,
+        }
+        return render(request, "rooms/index.html", context)
+    ```
+
+    
+
+    - 양 끝에 있는 페이지를 보여줌: `get_page`
+      - 1 미만 => 1
+      - 최대 페이지 초과 => 최대 페이지
+
+    ```python
+    def index(request):
+        page = int(request.GET.get("page", 1))
+        room_list = Room.objects.all()
+        paginator = Paginator(room_list, 10)
+        pages = paginator.get_page(page)
+        context = {
+            "pages": pages,
+        }
+        return render(request, "rooms/index.html", context)
+    ```
+
+    
+
+Django
+
+```django
+{% block content %}
+  <h1>Index</h1>
+  <h3>Rooms</h3>
+  <ul>
+    {% for room in pages.object_list %}
+    <li>{{ room.name }}</li>
+    {% endfor %}
+  </ul>
+  <hr>
+  <h4>{{ pages.number }} 페이지 / {{ pages.paginator.num_pages }}페이지 </h4>
+  <div>
+    {% if pages.has_previous %}
+    <a href="?page={{ pages.previous_page_number }}">이전</a>
+    {% endif %}
+
+    {% for page_num in pages.paginator.page_range %}
+    <a href="?page={{ page_num }}">{{ page_num }}</a>
+    {% endfor %}
+
+    {% if pages.has_next %}
+    <a href="?page={{ pages.next_page_number }}">다음</a>
+    {% endif %}
+  </div>
+{% endblock content %}
+```
+
+
+
+#### 3. Class based view
+
+[Built-in class-based views API](https://docs.djangoproject.com/en/3.2/ref/class-based-views/#built-in-class-based-views-api)
+
+[Paginating a ListView](https://docs.djangoproject.com/en/3.2/topics/pagination/#paginating-a-listview)
+
+클래스 기반 뷰의 프로퍼티를 확인하고 싶다면? [ccbv](https://ccbv.co.uk/)
+
+```python
+from django.urls import path
+from . import views
+
+app_name = "rooms"
+
+urlpatterns = [
+    path("", views.HomeView.as_view(), name="index"),
+]
+```
+
+```python
+class HomeView(ListView):
+    model = Room
+    context_object_name = "rooms"  # default: object_list
+    paginate_by = 10
+    paginate_orphans = 5
+    page_kwarg = "page"
+    ordering = "created_at"
+    extra_context = None
+    # template_name = "rooms/index.html"
+    def get_context_data(self, *, object_list=None, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["now"] = timezone.now()
+        return context
+```
+
+```django
+{% extends 'base.html' %}
+
+{% block title %}
+Index
+{% endblock title %}
+
+{% block content %}
+  <h1>Index</h1>
+  <h3>Rooms</h3>
+  <h4>{{ now }}</h4>
+  <ul>
+    {% for room in rooms %}
+    <li>{{ room.name }}</li>
+    {% endfor %}
+  </ul>
+  <hr>
+  <h4>{{ page_obj.number }} 페이지 / {{ page_obj.paginator.num_pages }}페이지 </h4>
+  <div>
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}">이전</a>
+    {% endif %}
+
+    {% for page_num in page_obj.paginator.page_range %}
+    <a href="?page={{ page_num }}">{{ page_num }}</a>
+    {% endfor %}
+
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}">다음</a>
+    {% endif %}
+  </div>
+{% endblock content %}
+```
 
 
 

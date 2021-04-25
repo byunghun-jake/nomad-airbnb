@@ -1,15 +1,30 @@
 {% extends 'base.html' %}
 
 {% block title %}
-Index
+Index11
 {% endblock title %}
 
 {% block content %}
   <h1>Index</h1>
   <h3>Rooms</h3>
   <ul>
-    {% for room in rooms %}
+    {% for room in pages.object_list %}
     <li>{{ room.name }}</li>
     {% endfor %}
   </ul>
+  <hr>
+  <h4>{{ pages.number }} 페이지 / {{ pages.paginator.num_pages }}페이지 </h4>
+  <div>
+    {% if pages.has_previous %}
+    <a href="?page={{ pages.previous_page_number }}">이전</a>
+    {% endif %}
+
+    {% for page_num in pages.paginator.page_range %}
+    <a href="?page={{ page_num }}">{{ page_num }}</a>
+    {% endfor %}
+
+    {% if pages.has_next %}
+    <a href="?page={{ pages.next_page_number }}">다음</a>
+    {% endif %}
+  </div>
 {% endblock content %}
