@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from django_countries.fields import CountryField
+from django.urls import reverse
 from core.models import TimeStampedModel
 
 # 다른 아이템들(RoomType, Facilities, Rules)을 생성하기 위한 모델 클래스
@@ -82,6 +83,9 @@ class Room(TimeStampedModel):
     def save(self, *args, **kwargs):
         self.city = self.city.title()
         super().save(*args, **kwargs)
+
+    def get_absolute_url(self):
+        return reverse("rooms:detail", kwargs={"room_pk": self.pk})
 
     def total_rating(self):
         reviews = self.review_set.all()

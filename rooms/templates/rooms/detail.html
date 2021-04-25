@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section>
+  <h1>DETAIL</h1>
+  <h2>ID: {{ room.pk }}</h2>
+  <h3>{{ room.name }}</h3>
+  <p>{{ room.description }}</p>
+</section>
+<section>
+  <h2>By: {{ room.host.username }}</h2>
+  {% if room.host.is_superhost %}
+    superHost
+  {% endif %}
+  <h3>Amenities</h3>
+  <ul>
+    {% for amenity in room.amenities.all %}
+    <li>{{ amenity.name }}</li>
+    {% endfor %}
+  </ul>
+  <h3>Facilities</h3>
+  <ul>
+    {% for facility in room.facilities.all %}
+    <li>{{ facility.name }}</li>
+    {% endfor %}
+  </ul>
+  <h3>House Rules</h3>
+  <ul>
+    {% for house_rule in room.house_rules.all %}
+    <li>{{ house_rule.name }}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock content %}

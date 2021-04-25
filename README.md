@@ -2972,13 +2972,68 @@ Index
 
 
 
+## #12 Detail view
 
 
 
+- `get_absolute_url()`
 
+  Define a `get_absolute_url()` method to tell Django how to calculate the canonical URL for an object. To callers, this method should appear to return a string that can be used to refer to the object over HTTP.
 
+  ```python
+  # rooms/models.py
+  
+  class Room(models.Model):
+      # ...
+  	def get_absolute_url(self):
+  		return reverse("rooms:detail", kwargs={"room_pk": self.pk})
+  ```
 
+  - `reverse()`는 `app_name:url_name`에 해당하는 주소를 반환합니다.
 
+  
+
+- 존재하지 않는 방을 찾으려고 할 때
+
+  `get()`
+
+  ```python
+  try:
+      room.objects.get(pk=room_pk)
+      context = {
+          "room": room,
+      }
+      return render(request, "rooms/detail.html", context)
+  except Room.DoesNotExist:
+      redirect("core:index")
+  ```
+
+  
+
+  `get_object_or_404()`
+
+  > 찾을 수 없다면, 404 Error 페이지로 리다이렉트시킨다.
+
+  ```python
+  room = get_object_or_404(Room, pk=room_pk)
+  context = {
+      "room": room,
+  }
+  return render(request, "rooms/detail.html", contect)
+  ```
+
+  동일한 코드
+
+  ```python
+  from django.http import Http404
+  try:
+      room = Room.objects.get(pk=room_pk)
+      # ...
+  except Room.DoesNotExist:
+      raise Http404()
+  ```
+
+  
 
 
 

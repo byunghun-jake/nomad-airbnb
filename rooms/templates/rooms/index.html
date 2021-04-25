@@ -9,7 +9,9 @@ Index11
   <h3>Rooms</h3>
   <ul>
     {% for room in pages.object_list %}
-    <li>{{ room.name }}</li>
+    <li>
+      <a href="{% url 'rooms:detail' room.pk %}">{{ room.name }}</a>
+    </li>
     {% endfor %}
   </ul>
   <hr>
