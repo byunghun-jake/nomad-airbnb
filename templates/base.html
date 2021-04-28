@@ -9,8 +9,16 @@
     </title>
   </head>
   <body>
+    <nav>
+      {% include "components/nav.html" %}
+    </nav>
     <header>
-      {% include "components/header.html" %}
+      {% comment %} {% include "components/header.html" %} {% endcomment %}
+      {% block search-bar %}
+      <form action="{% url 'rooms:search' %}">
+        <input type="text" placeholder="Search by City" name="city">
+      </form>
+      {% endblock search-bar %}
     </header>
     <main>
       {% block content %}

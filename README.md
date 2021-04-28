@@ -3035,13 +3035,116 @@ Index
 
   
 
+## #13 Search View
 
 
 
+- form
+  - action: 폼 데이터를 전달할 주소
+
+  - input
+    
+    - name
+    
+  - select
+
+    ```django
+    <div>
+        <label for="country">나라: </label>
+        <select name="country" id="country">
+            {% for country in countries %}
+            <option value="{{ country.code }}">{{ country.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    ```
+
+    ```django
+    <div>
+        <label for="room_type">방 종류: </label>
+        <select name="room_type" id="room_type">
+            {% for room_type in room_types %}
+            <option value="{{ room_type.pk }}">{{ room_type.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    ```
+
+- django-request
+
+  ```python
+  selected_facilities = request.GET.getlist("facilities")
+  # 값을 리스트로 받고 싶을 때 getlist
+  ```
+
+  
+
+- django form
+
+  - Form
+
+    > 역시 이게 검색에 최적화??
+
+  - ModelForm
+
+    > 게스트, select 중 모두 선택하기 등과 같은 커스텀요소가 있기 때문에 그대로 사용하는 건 힘들 것 같다.
+
+### DJango Form
+
+> Form HTML을 생성해준다.
+> form을 렌더링하기 위해 context에 데이터를 담아 보내주지 않아도 된다.
+>
+> 데이터를 정의한 대로 깔끔하게 만들어준다. clean_data
+
+#### Fields
+
+- CharField
+- IntegerField
+- ModelChoiceField
+- BooleanField
+- ModelMultipleChoiceField
+
+#### Widget
+
+- CheckboxSelectMultiple
+
+  ```python
+  amenities = forms.ModelMultipleChoiceField(
+      queryset=Amenity.objects.all(), widget=forms.CheckboxSelectMultiple
+  )
+  ```
+
+  > 선택한 개체를 포함한 쿼리셋을 반환한다.
 
 
 
+### Queries
 
+#### field lookups
+
+- 다대다 관계에서는 어떻 lookup을 써야할까요??
+
+#### Q objects
+
+
+
+### QueryDict
+
+> 변경이 불가능(Immutable)한 querydict
+
+검색창을 통해 검색 페이지에 들어가려고 할 때, 국가도 기본값으로 전달하고 싶었다.
+
+request.GET에 country 값을 넣어주면 될 것 같아, Querydict add item을 검색하여 다음 페이지를 찾아내었다.
+
+[Django modifying the request object](https://stackoverflow.com/questions/18930234/django-modifying-the-request-object/18931697)
+
+복사를 한 뒤에 수정이 가능했고, 나는 다음 코드를 통해 국가를 기본설정할 수 있었다.
+
+```python
+request.GET = request.GET.copy()
+request.GET["country"] = "KR"
+form = SearchForm(request.GET)
+```
 
 
 

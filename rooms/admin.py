@@ -34,6 +34,7 @@ class RoomAdmin(admin.ModelAdmin):
                 "fields": (
                     "host",
                     "name",
+                    "room_type",
                     "description",
                     "country",
                     "city",

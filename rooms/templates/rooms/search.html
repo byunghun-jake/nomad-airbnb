@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}
+Search
+{% endblock title %}
+
+{% block search-bar %}{% endblock search-bar %}
+
+{% block content %}
+<section>
+  <h1>Search!</h1>
+  <h2>{{ city }} 검색결과</h2>
+</section>
+<section>
+  <form action="{% url 'rooms:search' %}">
+    {{ form.as_p }}
+    <button>검색</button>
+  </form>
+</section>
+<section>
+  <h3>Result</h3>
+  {% if rooms %}
+  <ul>
+    {% for room in rooms %}
+    <li>{{ room.name }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+<hr>
+<div>
+    {% if rooms.has_previous %}
+    <a href="?page={{ rooms.previous_page_number }}">이전</a>
+    {% endif %}
+
+    {% for page_num in rooms.paginator.page_range %}
+    <a href="?page={{ page_num }}">{{ page_num }}</a>
+    {% endfor %}
+
+    {% if rooms.has_next %}
+    <a href="?page={{ rooms.next_page_number }}">다음</a>
+    {% endif %}
+  </div>
+{% endblock content %}
