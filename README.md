@@ -3150,13 +3150,187 @@ form = SearchForm(request.GET)
 
 
 
+## #14 Login
+
+
+
+### Email로 로그인하기 (다른 버전)
+
+- Email을 유일한 값으로 설정
+
+```python
+# users/models.py
+
+email = models.EmailField(unique=True)
+```
+
+
+
+- 로그인 과정에서 일어나는 백엔드 과정을 설정
+
+```python
+from django.contrib.auth.backends import ModelBackend
+from django.contrib.auth import get_user_model
+from django.core.exceptions import MultipleObjectsReturned
+from django.db.models import Q
+
+UserModel = get_user_model()
+
+
+class EmailBackend(ModelBackend):
+    def authenticate(self, request, username=None, password=None, **kwargs):
+        try:
+            user = UserModel.objects.get(email__iexact=username)
+        except UserModel.DoesNotExist:
+            UserModel().set_password(password)
+        except MultipleObjectsReturned:
+            return UserModel.objects.filter(email=username).order_by("id").first()
+        else:
+            if user.check_password(password) and self.user_can_authenticate(user):
+                return user
+
+    def get_user(self, user_id):
+        try:
+            user = UserModel.objects.get(pk=user_id)
+        except UserModel.DoesNotExist:
+            return None
+
+        return user if self.user_can_authenticate(user) else None
+```
+
+
+
+- 인증 과정에서 백엔드는 EmailBackend가 일어나도록 설정
+
+```python
+# settings.py
+
+AUTH_USER_MODEL = "users.User"
+AUTHENTICATION_BACKENDS = ["users.backends.EmailBackend"]
+```
+
+
+
+- AuthenticationForm
+
+```python
+class CustomAuthenticationForm(AuthenticationForm):
+    username = forms.CharField(label="이메일")
+```
+
+
+
+### 이메일로 로그인하기 (Nomad 버전)
+
+1. Django Form
+2. auth_login
+
+#### Form
+
+- `clean_[field]`
+
+  form 뭉치에서 field에 해당하는 값만 리턴하는 메서드
+
+```python
+class LoginForm(forms.Form):
+    email = forms.EmailField()
+    password = forms.CharField(widget=forms.PasswordInput)
+
+    def clean_email(self):
+        email = self.cleaned_data.get("email")
+        try:
+            # 주어진 이메일을 통해 이용자 검색
+            user = UserModel.objects.get(
+                Q(username__iexact=email) | Q(email__iexact=email)
+            )
+            return email
+        except UserModel.DoesNotExist:
+            raise forms.ValidationError("Aribnb에 가입한 아이디가 아닙니다.")
+
+    def clean_password(self):
+        email = self.cleaned_data.get("email")
+        password = self.cleaned_data.get("password")
+        try:
+            # 주어진 이메일을 통해 이용자 검색
+            user = UserModel.objects.get(
+                Q(username__iexact=email) | Q(email__iexact=email)
+            )
+            if user.check_password(password):
+                return password
+            else:
+                raise forms.ValidationError("비밀번호가 일치하지 않습니다.")
+        except UserModel.DoesNotExist:
+            pass
+```
+
+
+
+#### login
+
+- `authenticate`
+  - username을 넘겨주어야 함
+- `login`
+
+
+
+### http Decorator
+
+- HTTP Methods에는 다양한 방법이 있지만, 특정 Method만 허가하기 위해 안전장치로써 decorator를 사용해보았다.
+
+- decorator 종류
+
+  1. require_http_methods
+
+     Method를 리스트로 입력할 수 있다.
+
+  2. require_POST
+
+  3. require_safe
+
+```python
+from django.views.decorators.http import require_http_methods
+
+@require_http_methods(["GET", "POST"])
+def login(request):
+    # ...
+```
 
 
 
 
 
+### Model Form
+
+- 로그인을 위한 모델 폼을 생성하였다.
+
+```python
+class LoginForm(forms.ModelForm):
+    class Meta:
+        model = get_user_model()
+        fields = (
+            "email",
+            "password",
+        )
+        widgets = {
+            "password": forms.PasswordInput,
+        }
+```
 
 
+
+#### Custom Widget
+
+- fields에 class를 붙이는 건 `__init()__`을 통해 할 수 있었지만, widget 자체를 변경하는 건 다른 방식이었다.
+
+
+
+### CSRF_TOKEN
+
+> The CSRF middleware and template tag provides easy-to-use protection against [Cross Site Request Forgeries](https://www.squarefree.com/securitytips/web-developers.html#CSRF). This type of attack occurs when a malicious website contains a link, a form button or some JavaScript that is intended to perform some action on your website, using the credentials of a logged-in user who visits the malicious site in their browser. A related type of attack, ‘login CSRF’, where an attacking site tricks a user’s browser into logging into a site with someone else’s credentials, is also covered.
+
+이 사이트에서 보낸 요청에 응답을 하는거야! 알겠지? 그 증거로 여기 이 토큰을 보여줄게.
+
+다른 사이트에서 너한테 로그인시켜달라고 하더라도, 토큰을 꼭 확인해!
 
 
 
