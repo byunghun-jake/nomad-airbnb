@@ -3,5 +3,5 @@
   "python.linting.enabled": true,
   "python.formatting.provider": "black",
   "python.linting.flake8Args": ["--max-line-length=100"],
-  "python.pythonPath": "venv\\Scripts\\python.exe"
+  "python.pythonPath": "d:\\Code\\Study\\nomad-airbnb\\venv\\Scripts\\python.exe"
 }

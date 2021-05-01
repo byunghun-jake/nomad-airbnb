@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/3.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
-
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -46,6 +46,7 @@ THIRD_PARTY_APPS = [
     "django_countries",
     "django_seed",
     "django_extensions",
+    "dotenv",
 ]
 
 DJANGO_APPS = [
@@ -154,3 +155,13 @@ MEDIA_ROOT = BASE_DIR / "uploads"
 # MEDIA_ROOT = os.path.join(BASE_DIR, "uploads")
 
 MEDIA_URL = "/media/"
+
+
+# Sending Email
+# https://docs.djangoproject.com/en/3.2/topics/email/
+
+EMAIL_HOST = "smtp.mailgun.org"
+EMAIL_PORT = "587"
+EMAIL_HOST_USER = os.environ.get("MAILGUN_USERNAME")
+EMAIL_HOST_PASSWORD = os.environ.get("MAILGUN_PASSWORD")
+EMAIL_FROM = "no-reply@sandbox7933d228a0094580b693a3f9e374f4b6.mailgun.org"
