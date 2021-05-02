@@ -47,6 +47,7 @@ THIRD_PARTY_APPS = [
     "django_seed",
     "django_extensions",
     "dotenv",
+    "requests",
 ]
 
 DJANGO_APPS = [

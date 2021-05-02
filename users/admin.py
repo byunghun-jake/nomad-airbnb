@@ -34,6 +34,7 @@ class CustomUserAdmin(UserAdmin):
         "username",
         "first_name",
         "last_name",
+        "login_method",
         "email",
         "email_verified",
         "email_secret",
